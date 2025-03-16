@@ -19,8 +19,10 @@
         <p>Upload your image, video, or GIF to get started.</p>
 
         <!-- File upload input -->
-        <input type="file" id="fileInput" accept="image/*, video/*">
-        <button onclick="processFile()">Upload and Process</button>
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept="image/*, video/*">
+            <button onclick="processFile()">Upload and Process</button>
+        </div>
 
         <!-- Tools Section -->
         <div id="tools">
@@ -48,6 +50,11 @@
 
         <!-- Download Link -->
         <a id="downloadLink" style="display: none;">Download Processed File</a>
+
+        <!-- Progress Indicator -->
+        <div id="progress" style="display: none;">
+            <p>Processing... Please wait.</p>
+        </div>
     </div>
 
     <!-- Script for processing -->
@@ -133,14 +140,17 @@
             useWebWorker: true, // Use a separate thread for processing
         };
         try {
+            showProgress();
             const compressedFile = await imageCompression(uploadedFile, options);
             const downloadLink = document.getElementById('downloadLink');
             downloadLink.href = URL.createObjectURL(compressedFile);
             downloadLink.download = `compressed_${uploadedFile.name}`;
             downloadLink.style.display = 'block';
+            hideProgress();
         } catch (error) {
             alert('Error compressing file.');
             console.error(error);
+            hideProgress();
         }
     }
 
@@ -190,6 +200,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.mp4', '-vf', 'fps=10,scale=320:-1', 'output.gif');
         const data = ffmpeg.FS('readFile', 'output.gif');
@@ -197,6 +208,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'image/gif' }));
         downloadLink.download = 'output.gif';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Split GIF into frames
@@ -208,6 +220,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.gif', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.gif', 'frame-%03d.png');
         const files = ffmpeg.FS('readdir', '/').filter(file => file.startsWith('frame-'));
@@ -219,6 +232,7 @@
             link.textContent = `Download ${file}`;
             document.body.appendChild(link);
         });
+        hideProgress();
     }
 
     // Optimize WebP
@@ -230,6 +244,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.webp', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.webp', '-lossless', '1', 'output.webp');
         const data = ffmpeg.FS('readFile', 'output.webp');
@@ -237,6 +252,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'image/webp' }));
         downloadLink.download = 'optimized.webp';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Optimize PNG
@@ -248,6 +264,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.png', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.png', '-compression_level', '9', 'output.png');
         const data = ffmpeg.FS('readFile', 'output.png');
@@ -255,6 +272,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'image/png' }));
         downloadLink.download = 'optimized.png';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Optimize JPG
@@ -266,6 +284,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.jpg', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.jpg', '-quality', '85', 'output.jpg');
         const data = ffmpeg.FS('readFile', 'output.jpg');
@@ -273,6 +292,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'image/jpeg' }));
         downloadLink.download = 'optimized.jpg';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Compress video
@@ -284,6 +304,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.mp4', '-vf', 'scale=640:-1', '-b:v', '1M', 'output.mp4');
         const data = ffmpeg.FS('readFile', 'output.mp4');
@@ -291,6 +312,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
         downloadLink.download = 'compressed.mp4';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Repair GIF
@@ -302,6 +324,7 @@
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
+        showProgress();
         ffmpeg.FS('writeFile', 'input.gif', await fetchFile(uploadedFile));
         await ffmpeg.run('-i', 'input.gif', '-vf', 'split[v],palettegen[pal],[v][pal]paletteuse', 'output.gif');
         const data = ffmpeg.FS('readFile', 'output.gif');
@@ -309,6 +332,7 @@
         downloadLink.href = URL.createObjectURL(new Blob([data.buffer], { type: 'image/gif' }));
         downloadLink.download = 'repaired.gif';
         downloadLink.style.display = 'block';
+        hideProgress();
     }
 
     // Show download link for processed file
@@ -319,6 +343,16 @@
             downloadLink.download = `processed_${uploadedFile.name}`;
             downloadLink.style.display = 'block';
         });
+    }
+
+    // Show progress indicator
+    function showProgress() {
+        document.getElementById('progress').style.display = 'block';
+    }
+
+    // Hide progress indicator
+    function hideProgress() {
+        document.getElementById('progress').style.display = 'none';
     }
     </script>
 </body>
